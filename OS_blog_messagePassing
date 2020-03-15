@@ -1,0 +1,227 @@
+Communication using message queues can happen in the following ways −
+
+Writing into the shared memory by one process and reading from the shared memory by another process. As we are aware, reading can be done with multiple processes as well.
+Writing into the shared memory by one process with different data packets and reading from it by multiple processes, i.e., as per message type.
+
+
+To perform communication using message queues, following are the steps −
+
+Step 1 − Create a message queue or connect to an already existing message queue (msgget())
+
+Step 2 − Write into message queue (msgsnd())
+
+Step 3 − Read from the message queue (msgrcv())
+
+Step 4 − Perform control operations on the message queue (msgctl())
+
+
+A message queue is a linked list of messages stored within the kernel and identified by a message queue identifier. A new queue is created or an existing queue opened by msgget().
+New messages are added to the end of a queue by msgsnd(). Every message has a positive long integer type field, a non-negative length, and the actual data bytes (corresponding to the length), all of which are specified to msgsnd() when the message is added to a queue. Messages are fetched from a queue by msgrcv(). We don’t have to fetch the messages in a first-in, first-out order. Instead, we can fetch messages based on their type field.
+
+
+All processes can exchange information through access to a common system message queue. The sending process places a message (via some (OS) message-passing module) onto a queue which can be read by another process. Each message is given an identification or type so that processes can select the appropriate message. Process must share a common key in order to gain access to the queue in the first place.
+
+ftok(): is use to generate a unique key.
+
+msgget(): either returns the message queue identifier for a newly created message 
+queue or returns the identifiers for a queue which exists with the same key value.
+
+msgsnd(): Data is placed on to a message queue by calling msgsnd().
+
+msgrcv(): messages are retrieved from a queue.
+
+msgctl(): It performs various operations on a queue. Generally it is use to 
+destroy message queue.
+
+Processes can communicate with each other using these two ways:
+Shared Memory
+Message passing
+
+
+
+
+
+
+
+
+
+
+
+
+#include <stdio.h> 
+#include <sys/ipc.h> 
+#include <sys/msg.h> 
+
+struct buffer { 
+	long m_type; 
+	char m_text[100]; 
+} msg; 
+
+int main() 
+{ 
+	key_t key; 
+	int id; 
+
+	// ftok to generate unique key 
+	key = ftok("tt", 69); 
+
+	// msgget creates a message queue and returns identifier 
+	id = msgget(key, 0666 | IPC_CREAT); 
+	msg.mesg_type = 1; 
+
+	printf("Write Data : "); 
+	gets(msg.m_text); 
+
+	// msgsnd to send message 
+	msgsnd(id, &msg, sizeof(msg), 0); 
+
+	// display the message 
+	printf("Data send is : %s \n", msg.m_text); 
+
+	return 0; 
+} 
+
+
+#include <stdio.h> 
+#include <sys/ipc.h> 
+#include <sys/msg.h> 
+
+struct buffer { 
+	long m_type; 
+	char m_text[100]; 
+} msg; 
+
+int main() 
+{ 
+	key_t key; 
+	int id; 
+
+	// ftok to generate unique key 
+	key = ftok("tt", 69); 
+
+	// msgget creates a message queue and returns identifier 
+	msgid = msgget(key, 0666 | IPC_CREAT); 
+
+	// msgrcv to receive message 
+	msgrcv(id, &msg, sizeof(msg), 1, 0); 
+
+	// display the message 
+	printf("Data Received is : %s \n", msg.m_text); 
+
+	// to destroy the message queue 
+	msgctl(id, IPC_RMID, NULL); 
+
+	return 0; 
+} 
+
+
+
+// ANIKET DOUBT
+
+I hope your doubt regarding ftok() function is clear.
+But in case it's not, here are some more insights on it.
+
+Processes requesting access to an IPC facility must be able to identify it. To do this, functions that initialize or provide access to an IPC facility use a key_t key argument. The key is an arbitrary value or one that can be derived from a common seed at run time.
+Note: key_t is essentially an int type defined in <sys/types.h>
+
+One of the popular way to generate the key is with ftok() , which converts a filename(given as the first argument) to a key value that is unique within the system.
+
+FUNCTION:
+key_t ftok(const char *path, int id);
+
+Basically, path just has to be a file that this process can read. The other argument, id is usually just set to some arbitrary char, like 'A'. The ftok() function uses information about the named file and the id to generate a probably-unique key for msgget(). Programs that want to use the same queue must generate the same key, so they must pass the same parameters to ftok().
+
+NOTE: If you don't want to use this function to get the key, then you can simply use your own int type of key, which will be passed in the msgget() function, for the creation of a message queue.
+For example, you could do something like this-
+
+int key = 6668;
+int message_q_id = msgget(key, 0666 | IPC_CREAT);
+
+
+
+Processes requesting access to an IPC facility must be able to identify it. To do this, functions that initialize or provide access to an IPC facility use a key_t key argument. (key_t is essentially an int type defined in <sys/types.h>
+
+The key is an arbitrary value or one that can be derived from a common seed at run time. One way is with ftok() , which converts a filename to a key value that is unique within the system. Functions that initialize or get access to messages (also semaphores or shared memory see later) return an ID number of type int. IPC functions that perform read, write, and control operations use this ID. If the key argument is specified as IPC_PRIVATE, the call initializes a new instance of an IPC facility that is private to the creating process. When the IPC_CREAT flag is supplied in the flags argument appropriate to the call, the function tries to create the facility if it does not exist already. When called with both the IPC_CREAT and IPC_EXCL flags, the function fails if the facility already exists. This can be useful when more than one process might attempt to initialize the facility. One such case might involve several server processes having access to the same facility. If they all attempt to create the facility with IPC_EXCL in effect, only the first attempt succeeds. If neither of these flags is given and the facility already exists, the functions to get access simply return the ID of the facility. If IPC_CREAT is omitted and the facility is not already initialized, the calls fail. These control flags are combined, using logical (bitwise) OR, with the octal permission modes to form the flags argument. For example, the statement below initializes a new message queue if the queue does not exist.
+
+// PRINCE DOUBT
+
+Prince, you can surely do so. But the program given in the post was a 'simple' example, just for illustrating IPC among two processes using a Message queue. 
+You can create more complicated programs using message queues, like sending messages from process-1(user1) to process-2(user2) and sending back reply for the received messages from user2 to user1.
+
+
+
+
+
+
+
+
+
+
+
+THREAD {
+    while(true) {
+        Receive message from message queue, sent by user2
+        Display message
+    }
+    
+}
+
+MAIN {
+    Create a message queue
+    Create THREAD to receive messages sent by user2
+    while(true) {
+        Take input from user
+        Send the message to the message queue
+
+
+    }
+}
+
+
+
+
+There will be two programs: user1 and user2
+user1 program
+MAIN {
+    Create a message queue
+    while(true) {
+        Take input from user
+        Send the message to the message queue
+
+        Receive message from message queue, sent by user2
+        Display message        
+    }
+}
+
+user2 program
+MAIN {
+    Create a message queue
+    while(true) {
+        Receive message from message queue, sent by user1
+        Display message   
+
+        Take input from user
+        Send the message to the message queue             
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
